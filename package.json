@@ -1,0 +1,12 @@
+{
+  "name": "foodlab-eafit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FoodLab EAFIT web app con backend Node + SQLite",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3"
+  }
+}

@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FoodLab EAFIT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>FoodLab EAFIT</h1>
+      <p>Optimiza tu almuerzo entre clases</p>
+    </div>
+    <div class="auth-box">
+      <div id="authInfo" class="meta"></div>
+      <button id="logoutBtn" class="secondary hidden">Cerrar sesión</button>
+    </div>
+    <nav class="tabs">
+      <button id="tabStudent" class="tab active">Vista Estudiante</button>
+      <button id="tabAdmin" class="tab">Panel Administrador</button>
+      <button id="tabDocs" class="tab">Entregable UX/PM</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="loginView" class="view active">
+      <section class="card login-card">
+        <h2>Iniciar sesión</h2>
+        <p class="meta">Solo usuarios tipo <strong>admin</strong> o <strong>restaurant</strong> pueden acceder al Panel Administrador.</p>
+        <form id="loginForm" class="form">
+          <label class="field">
+            <span>Correo</span>
+            <input type="email" id="loginEmail" required>
+          </label>
+          <label class="field">
+            <span>Contraseña</span>
+            <input type="password" id="loginPassword" required>
+          </label>
+          <button class="primary" type="submit">Entrar</button>
+        </form>
+
+        <div class="divider"></div>
+
+        <h3>Recuperar contraseña</h3>
+        <form id="requestResetForm" class="form">
+          <label class="field">
+            <span>Correo</span>
+            <input type="email" id="resetEmail" required>
+          </label>
+          <button class="secondary" type="submit">Solicitar código</button>
+        </form>
+
+        <form id="confirmResetForm" class="form">
+          <label class="field">
+            <span>Correo</span>
+            <input type="email" id="confirmEmail" required>
+          </label>
+          <label class="field">
+            <span>Código de recuperación</span>
+            <input type="text" id="resetCode" required>
+          </label>
+          <label class="field">
+            <span>Nueva contraseña</span>
+            <input type="password" id="newPassword" minlength="6" required>
+          </label>
+          <button class="secondary" type="submit">Actualizar contraseña</button>
+        </form>
+
+        <p id="resetFeedback" class="meta"></p>
+      </section>
+    </section>
+
+    <section id="appView" class="hidden">
+      <section id="studentView" class="view active">
+        <div class="grid two-cols">
+          <section class="card">
+            <h2>1) Menús en vivo + reseñas</h2>
+            <label class="field">
+              <span>Filtrar por restaurante</span>
+              <select id="restaurantFilter"></select>
+            </label>
+            <div id="menuList"></div>
+          </section>
+
+          <section class="card">
+            <h2>2) Carrito y Checkout</h2>
+            <div id="cartList"></div>
+            <div class="totals">
+              <p><strong>Subtotal: $<span id="cartSubtotal">0</span></strong></p>
+              <p>Descuento carnet: -$<span id="cartDiscount">0</span> <span id="promoBadge" class="badge ok hidden"></span></p>
+              <p>Suscripción Entre Clases: +$<span id="cartSubscriptionFee">0</span></p>
+              <p><strong>Total a pagar: $<span id="cartTotal">0</span></strong></p>
+            </div>
+
+            <div class="checkout-box">
+              <h3>Configurar pedido</h3>
+              <label class="field">
+                <span>Hora exacta de recogida</span>
+                <input type="time" id="pickupTime" required>
+              </label>
+              <label class="field">
+                <span>Método de pago</span>
+                <select id="paymentMethod">
+                  <option value="online">Pago Online (tarjeta/pasarela)</option>
+                  <option value="onsite">Pagar en caja al recoger</option>
+                </select>
+              </label>
+              <label class="field inline">
+                <input type="checkbox" id="betweenClassesMode">
+                <span>Crear suscripción "Entre Clases" con este carrito</span>
+              </label>
+              <div id="subscriptionFields" class="hidden">
+                <label class="field">
+                  <span>Nombre de la suscripción</span>
+                  <input type="text" id="subscriptionName" placeholder="Ej: Almuerzo fijo">
+                </label>
+                <label class="field">
+                  <span>Frecuencia</span>
+                  <select id="subscriptionFrequency">
+                    <option value="DAILY">Diaria</option>
+                    <option value="WEEKLY">Semanal</option>
+                    <option value="MONTHLY">Mensual</option>
+                  </select>
+                </label>
+              </div>
+              <button id="placeOrderBtn" class="primary">Confirmar pedido</button>
+            </div>
+          </section>
+        </div>
+
+        <div class="grid two-cols">
+          <section class="card">
+            <h2>3) Favoritos</h2>
+            <div id="favoritesList"></div>
+          </section>
+
+          <section class="card">
+            <h2>4) Pa'comer algo</h2>
+            <div id="cravingsList"></div>
+          </section>
+        </div>
+
+        <div class="grid two-cols">
+          <section class="card">
+            <h2>5) Estado del pedido y fila exclusiva</h2>
+            <div id="orderStatus" class="status-box">Aún no tienes pedidos activos.</div>
+          </section>
+
+          <section class="card">
+            <h2>6) Suscripciones Entre Clases</h2>
+            <div id="subscriptionsList"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="adminView" class="view">
+        <div class="grid two-cols">
+          <section class="card">
+            <h2>Gestión de restaurantes</h2>
+            <form id="restaurantForm" class="form">
+              <label class="field">
+                <span>Nombre del restaurante</span>
+                <input type="text" id="restaurantName" required>
+              </label>
+              <label class="field">
+                <span>Bloque / Ubicación</span>
+                <input type="text" id="restaurantLocation" required>
+              </label>
+              <button class="primary" type="submit">Crear restaurante</button>
+            </form>
+            <div id="restaurantsAdminList"></div>
+          </section>
+
+          <section class="card">
+            <h2>Creación de menú (Back-office)</h2>
+            <form id="menuForm" class="form">
+              <label class="field">
+                <span>Restaurante</span>
+                <select id="menuRestaurant" required></select>
+              </label>
+              <label class="field">
+                <span>Título del plato</span>
+                <input type="text" id="dishTitle" required>
+              </label>
+              <label class="field">
+                <span>Descripción</span>
+                <input type="text" id="dishDescription" required>
+              </label>
+              <label class="field">
+                <span>Precio (COP)</span>
+                <input type="number" id="dishPrice" min="0" step="100" required>
+              </label>
+              <label class="field">
+                <span>Calorías (kcal)</span>
+                <input type="number" id="dishCalories" min="0" step="1" required>
+              </label>
+              <label class="field">
+                <span>Ingredientes</span>
+                <input type="text" id="dishIngredients" placeholder="Arroz, pollo, ensalada">
+              </label>
+              <label class="field">
+                <span>Foto (URL)</span>
+                <input type="url" id="dishPhoto" placeholder="https://...">
+              </label>
+              <label class="field inline">
+                <input type="checkbox" id="dishSoldOut">
+                <span>Agotado</span>
+              </label>
+              <button class="primary" type="submit">Publicar plato</button>
+            </form>
+          </section>
+        </div>
+
+        <section class="card">
+          <h2>Menú publicado (editar disponibilidad y eliminar)</h2>
+          <div id="adminMenuList"></div>
+        </section>
+
+        <section class="card">
+          <h2>Pa'comer algo</h2>
+          <form id="cravingForm" class="form">
+            <label class="field">
+              <span>Restaurante</span>
+              <select id="cravingRestaurant" required></select>
+            </label>
+            <label class="field">
+              <span>Título</span>
+              <input type="text" id="cravingTitle" required>
+            </label>
+            <label class="field">
+              <span>Descripción</span>
+              <input type="text" id="cravingDescription" required>
+            </label>
+            <label class="field">
+              <span>Precio (COP)</span>
+              <input type="number" id="cravingPrice" min="0" step="100" required>
+            </label>
+            <label class="field">
+              <span>Calorías (kcal)</span>
+              <input type="number" id="cravingCalories" min="0" step="1" required>
+            </label>
+            <label class="field">
+              <span>Ingredientes</span>
+              <input type="text" id="cravingIngredients">
+            </label>
+            <label class="field">
+              <span>Foto (URL)</span>
+              <input type="url" id="cravingPhoto">
+            </label>
+            <label class="field inline">
+              <input type="checkbox" id="cravingSoldOut">
+              <span>Agotado</span>
+            </label>
+            <button class="primary" type="submit">Publicar antojo</button>
+          </form>
+          <div id="cravingAdminList"></div>
+        </section>
+      </section>
+
+      <section id="docsView" class="view">
+        <article class="card prose" id="docsContent"></article>
+      </section>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
