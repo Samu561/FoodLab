@@ -324,6 +324,10 @@ function renderCravings() {
       <p class="meta">${item.description}</p>
       <p class="meta">Calorías: ${Number(item.calories || 0)} kcal</p>
       <p class="price">$${formatCOP(item.price)}</p>
+      <div class="action-row">
+        <button class="secondary add-craving-cart" data-dish-id="${item.dishId || ""}" ${item.dishId ? "" : "disabled"}>Agregar al carrito</button>
+        <button class="secondary toggle-favorite ${item.dishId && isFavorite(item.dishId) ? "fav-active" : ""}" data-id="${item.dishId || ""}" ${item.dishId ? "" : "disabled"}>${item.dishId && isFavorite(item.dishId) ? "Quitar favorito" : "Guardar favorito"}</button>
+      </div>
     </article>
   `).join("");
 }
@@ -824,6 +828,25 @@ favoritesList.addEventListener("click", async (event) => {
 
   const favBtn = event.target.closest("button.toggle-favorite");
   if (favBtn) {
+    try {
+      await toggleFavorite(Number(favBtn.dataset.id));
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+});
+
+cravingsList.addEventListener("click", async (event) => {
+  const addBtn = event.target.closest("button.add-craving-cart");
+  if (addBtn) {
+    if (!addBtn.dataset.dishId) return;
+    addToCart(Number(addBtn.dataset.dishId));
+    return;
+  }
+
+  const favBtn = event.target.closest("button.toggle-favorite");
+  if (favBtn) {
+    if (!favBtn.dataset.id) return;
     try {
       await toggleFavorite(Number(favBtn.dataset.id));
     } catch (error) {

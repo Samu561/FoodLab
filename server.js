@@ -82,6 +82,7 @@ function initDb() {
     CREATE TABLE IF NOT EXISTS cravings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       restaurant_id INTEGER NOT NULL,
+      dish_id INTEGER,
       title TEXT NOT NULL,
       description TEXT NOT NULL,
       price INTEGER NOT NULL,
@@ -197,6 +198,7 @@ function initDb() {
   addColumnIfMissing("subscriptions", "user_id", "INTEGER");
   addColumnIfMissing("subscriptions", "plan_fee", "INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing("reviews", "user_id", "INTEGER");
+  addColumnIfMissing("cravings", "dish_id", "INTEGER");
 
   // Repara datos antiguos para que el precio de suscripción no quede en 0.
   db.exec(`
@@ -226,6 +228,31 @@ function initDb() {
     END
     WHERE subscription_fee = 0 AND subscription_frequency IS NOT NULL;
   `);
+
+  // Backfill: enlaza antojos antiguos con un plato equivalente para habilitar carrito/favoritos.
+  const cravingsToLink = db.prepare(`
+    SELECT id, restaurant_id AS restaurantId, title, description, price, calories, ingredients, photo, sold_out AS soldOut
+    FROM cravings
+    WHERE dish_id IS NULL
+  `).all();
+  const createDishForCraving = db.prepare(`
+    INSERT INTO dishes (restaurant_id, title, description, price, calories, ingredients, photo, sold_out)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const linkCravingDish = db.prepare("UPDATE cravings SET dish_id = ? WHERE id = ?");
+  for (const craving of cravingsToLink) {
+    const dish = createDishForCraving.run(
+      craving.restaurantId,
+      craving.title,
+      craving.description,
+      craving.price,
+      craving.calories || 0,
+      craving.ingredients || "",
+      craving.photo || "",
+      craving.soldOut || 0
+    );
+    linkCravingDish.run(Number(dish.lastInsertRowid), craving.id);
+  }
 }
 
 function addColumnIfMissing(table, column, definition) {
@@ -417,7 +444,7 @@ function fetchDishes(user) {
 
 function fetchCravings() {
   return db.prepare(`
-    SELECT c.id, c.restaurant_id AS restaurantId, c.title, c.description, c.price, c.calories,
+    SELECT c.id, c.restaurant_id AS restaurantId, c.dish_id AS dishId, c.title, c.description, c.price, c.calories,
            c.ingredients, c.photo, c.sold_out AS soldOut, c.created_at AS createdAt,
            r.name AS restaurantName, r.location AS restaurantLocation
     FROM cravings c JOIN restaurants r ON r.id = c.restaurant_id
@@ -765,10 +792,23 @@ async function handleApi(req, res, url) {
       return;
     }
 
-    const result = db.prepare(
-      "INSERT INTO cravings (restaurant_id, title, description, price, calories, ingredients, photo, sold_out) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    const dishResult = db.prepare(
+      "INSERT INTO dishes (restaurant_id, title, description, price, calories, ingredients, photo, sold_out) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     ).run(
       restaurantId,
+      String(body.title).trim(),
+      String(body.description).trim(),
+      Number(body.price),
+      Number(body.calories || 0),
+      String(body.ingredients || "").trim(),
+      String(body.photo || "").trim(),
+      toBool(Boolean(body.soldOut))
+    );
+    const result = db.prepare(
+      "INSERT INTO cravings (restaurant_id, dish_id, title, description, price, calories, ingredients, photo, sold_out) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    ).run(
+      restaurantId,
+      Number(dishResult.lastInsertRowid),
       String(body.title).trim(),
       String(body.description).trim(),
       Number(body.price),
@@ -807,6 +847,21 @@ async function handleApi(req, res, url) {
     }
 
     db.prepare(`UPDATE cravings SET ${update.assignments} WHERE id = ?`).run(...update.values, id);
+    const craving = db.prepare("SELECT dish_id AS dishId FROM cravings WHERE id = ?").get(id);
+    if (craving && craving.dishId) {
+      const dishUpdate = buildSetClause({
+        title: body.title !== undefined ? String(body.title).trim() : undefined,
+        description: body.description !== undefined ? String(body.description).trim() : undefined,
+        price: body.price !== undefined ? Number(body.price) : undefined,
+        calories: body.calories !== undefined ? Number(body.calories) : undefined,
+        ingredients: body.ingredients !== undefined ? String(body.ingredients).trim() : undefined,
+        photo: body.photo !== undefined ? String(body.photo).trim() : undefined,
+        sold_out: body.soldOut !== undefined ? toBool(Boolean(body.soldOut)) : undefined
+      }, ["title", "description", "price", "calories", "ingredients", "photo", "sold_out"]);
+      if (dishUpdate) {
+        db.prepare(`UPDATE dishes SET ${dishUpdate.assignments} WHERE id = ?`).run(...dishUpdate.values, craving.dishId);
+      }
+    }
     respondJson(res, 200, { ok: true });
     return;
   }
@@ -819,7 +874,11 @@ async function handleApi(req, res, url) {
       return;
     }
 
+    const craving = db.prepare("SELECT dish_id AS dishId FROM cravings WHERE id = ?").get(id);
     db.prepare("DELETE FROM cravings WHERE id = ?").run(id);
+    if (craving && craving.dishId) {
+      db.prepare("DELETE FROM dishes WHERE id = ?").run(craving.dishId);
+    }
     respondJson(res, 200, { ok: true });
     return;
   }
